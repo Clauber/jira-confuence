@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:13
+    container_name: atlassian-db
+    environment:
+      POSTGRES_DB: atlassian
+      POSTGRES_USER: atlassian
+      POSTGRES_PASSWORD: atlassian_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - atlassian-network
+    restart: unless-stopped
+
+  jira:
+    build:
+      context: ./jira
+      dockerfile: Dockerfile
+    container_name: jira
+    depends_on:
+      - database
+    environment:
+      ATL_PROXY_NAME: localhost
+      ATL_PROXY_PORT: 8080
+      ATL_TOMCAT_SCHEME: http
+      ATL_TOMCAT_SECURE: 'false'
+      JVM_MINIMUM_MEMORY: 1024m
+      JVM_MAXIMUM_MEMORY: 2048m
+      ATL_DB_TYPE: postgres72
+      ATL_DB_DRIVER: org.postgresql.Driver
+      ATL_JDBC_URL: jdbc:postgresql://database:5432/jira
+      ATL_JDBC_USER: atlassian
+      ATL_JDBC_PASSWORD: atlassian_password
+    volumes:
+      - jira_data:/var/atlassian/application-data/jira
+    networks:
+      - atlassian-network
+    restart: unless-stopped
+    expose:
+      - "8080"
+
+  confluence:
+    build:
+      context: ./confluence
+      dockerfile: Dockerfile
+    container_name: confluence
+    depends_on:
+      - database
+    environment:
+      ATL_PROXY_NAME: localhost
+      ATL_PROXY_PORT: 8090
+      ATL_TOMCAT_SCHEME: http
+      ATL_TOMCAT_SECURE: 'false'
+      JVM_MINIMUM_MEMORY: 1024m
+      JVM_MAXIMUM_MEMORY: 2048m
+      ATL_DB_TYPE: postgres72
+      ATL_DB_DRIVER: org.postgresql.Driver
+      ATL_JDBC_URL: jdbc:postgresql://database:5432/confluence
+      ATL_JDBC_USER: atlassian
+      ATL_JDBC_PASSWORD: atlassian_password
+    volumes:
+      - confluence_data:/var/atlassian/application-data/confluence
+    networks:
+      - atlassian-network
+    restart: unless-stopped
+    expose:
+      - "8090"
+
+volumes:
+  postgres_data:
+  jira_data:
+  confluence_data:
+
+networks:
+  atlassian-network:
+    driver: bridge
